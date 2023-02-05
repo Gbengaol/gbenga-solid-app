@@ -1,59 +1,23 @@
-import { createSignal, For, createMemo, Show } from "solid-js";
+import { For, createMemo, Show } from "solid-js";
+import Modalcomponent from "../components/Modal.component";
+import { useTodoContext } from "../context/todo.context";
 import { AddNewTodo } from "./AddNewTodo";
 import { TodoItem } from "./TodoItem";
 
-export type Todo = {
-  title: string;
-  completed: boolean;
-  id: string;
-};
-
-const emptyTodo: Todo = {
-  title: "",
-  completed: false,
-  id: "",
-};
-
 export const TodoApp = () => {
-  const [todos, setTodos] = createSignal<Array<Todo>>([]);
-  const [newTodo, setNewTodo] = createSignal<Todo>(emptyTodo);
-
-  const onSubmit = (
-    e: MouseEvent & {
-      currentTarget: HTMLButtonElement;
-      target: Element;
-    }
-  ) => {
-    e.preventDefault();
-    setTodos([{ ...newTodo(), id: Date.now().toString() }, ...todos()]);
-    setNewTodo(emptyTodo);
-  };
-
-  const toggleItem = (id: string) => {
-    setTodos((oldTodos) => {
-      return oldTodos.map((oldTodo) => ({
-        ...oldTodo,
-        completed: oldTodo.id === id ? !oldTodo.completed : oldTodo.completed,
-      }));
-    });
-  };
+  const { state } = useTodoContext();
 
   const todoElements = createMemo(() =>
-    todos()?.filter((el) => el.title?.length)
+    state.todos?.filter((el) => el.title?.length)
   );
 
   return (
-    <div class="w-full border-green-900 border-2 p-8 rounded-3xl">
-      <div class="grid grid-cols-3 gap-8">
-        <form class="col-span-2">
-          <AddNewTodo
-            onSubmit={onSubmit}
-            newTodo={newTodo()}
-            setNewTodo={setNewTodo}
-            todos={todos}
-          />
-        </form>
-        <div class="bg-gray-100 rounded-lg p-3">
+    <div class="border-green-900 border-2 p-8 rounded-3xl">
+      <div class="flex flex-wrap md:flex-nowrap justify-center gap-8 w-full">
+        <div class="w-full md:w-2/3">
+          <AddNewTodo />
+        </div>
+        <div class="w-full md:w-1/3 bg-gray-100 rounded-lg p-3 col-span-1">
           <div class="text-center font-bold text-lg">Added todo items</div>
           <div class=" max-h-96 overflow-y-auto">
             <Show
@@ -66,13 +30,16 @@ export const TodoApp = () => {
             >
               <ul class="mt-5">
                 <For each={todoElements()}>
-                  {(todo) => <TodoItem {...todo} toggleItem={toggleItem} />}
+                  {(todo) => <TodoItem {...todo} />}
                 </For>
               </ul>
             </Show>
           </div>
+          {state.deleteId?.length ? <Modalcomponent /> : null}
         </div>
       </div>
     </div>
   );
 };
+
+export default TodoApp;

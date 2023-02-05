@@ -1,19 +1,17 @@
-import { Accessor, Component, createResource, For, Setter } from "solid-js";
-import { Todo } from "./TodoApp";
+import { createResource, For, Match, Switch } from "solid-js";
+import { useTodoContext } from "../context/todo.context";
+import { Todo } from "../types";
+import { RiSystemCheckDoubleFill } from "solid-icons/ri";
+import { TiTimes } from "solid-icons/ti";
 
-type AddNewTodoProps = {
-  newTodo: Todo;
-  setNewTodo: Setter<Todo>;
-  onSubmit: (
-    e: MouseEvent & {
-      currentTarget: HTMLButtonElement;
-      target: Element;
-    }
-  ) => void;
-  todos: Accessor<Todo[]>;
-};
+let inputFieldRef: HTMLInputElement;
 
-export const AddNewTodo: Component<AddNewTodoProps> = (props) => {
+export const AddNewTodo = () => {
+  const {
+    state,
+    actions: { onSubmit, onTextChange, setItemToEdit },
+  } = useTodoContext();
+
   const [todosData] = createResource<Array<Todo>>(async () => {
     return fetch("https://jsonplaceholder.typicode.com/todos")
       .then((res) => res.json())
@@ -21,68 +19,87 @@ export const AddNewTodo: Component<AddNewTodoProps> = (props) => {
   });
   return (
     <div class="w-full flex flex-col justify-between">
-      <div class="flex mb-5">
-        <input
-          type="text"
-          class="w-3/4 p-2 mr-5 border-green-300 hover:border-green-500 focus-visible:border-green-700 border-2 rounded-lg"
-          value={props.newTodo.title}
-          onInput={(e) =>
-            props.setNewTodo({
-              ...props.newTodo,
-              title: e.currentTarget.value,
-            })
-          }
-          placeholder="Enter new todo item..."
-        />
+      <form>
+        <div class="flex mb-5">
+          <input
+            type="text"
+            class="w-3/4 p-2 mr-5 border-green-300 hover:border-green-500 focus-visible:border-green-700 border-2 rounded-lg focus:outline-0"
+            value={state.newTodo.title}
+            onInput={(e) => {
+              onTextChange(e.currentTarget.value);
+            }}
+            ref={inputFieldRef}
+            autofocus
+            placeholder="Enter new todo item..."
+          />
 
-        <button
-          type="submit"
-          class="bg-green-200 px-8 py-3 rounded-lg hover:bg-green-500 disabled:cursor-not-allowed"
-          onClick={props.onSubmit}
-          disabled={!props.newTodo.title?.length}
-        >
-          Add Todo
-        </button>
-      </div>
+          {state.editId && (
+            <button
+              type="button"
+              class="bg-red-500 hover:bg-red-600 px-8 py-3 rounded-lg hover:bg-green-500 mr-2 text-white"
+              onClick={() => setItemToEdit("")}
+            >
+              <TiTimes />
+            </button>
+          )}
+          <button
+            type="submit"
+            class="bg-green-500 px-8 py-3 rounded-lg hover:bg-green-600 disabled:cursor-not-allowed text-white"
+            disabled={!state.newTodo.title?.length}
+            onClick={(e) => {
+              e.preventDefault();
+              onSubmit();
+              inputFieldRef.focus();
+            }}
+          >
+            {state.editId ? <RiSystemCheckDoubleFill /> : "Add Todo"}
+          </button>
+        </div>
+      </form>
       <div>
         <h4 class="font-bold mb-3">Suggestions below: </h4>
         <div class="max-h-80 overflow-y-auto py-2">
-          {todosData.loading ? (
-            <div class="text-center p-20 text-lg uppercase text-green-300 animate-wiggle">
-              Loading...
-            </div>
-          ) : todosData.error ? (
-            <div class="text-center p-20 text-lg uppercase text-red-700">
-              An error occured
-            </div>
-          ) : (
-            <For
-              each={todosData()
-                ?.filter(
-                  (el: Todo) =>
-                    !props.todos().some((item) => item.title === el.title)
-                )
-                ?.slice(0, 20)}
-            >
-              {(todo) => (
-                <div
-                  onClick={() =>
-                    props.setNewTodo({
-                      ...props.newTodo,
-                      title: todo.title,
-                    })
-                  }
-                  class={`cursor-pointer p-2 mb-2 hover:bg-gray-100 ${
-                    props.newTodo.title === todo.title
-                      ? "bg-gray-400 text-white rounded-sm"
-                      : ""
-                  }`}
-                >
-                  {todo.title}
-                </div>
-              )}
-            </For>
-          )}
+          <Switch
+            fallback={
+              <For
+                each={todosData()
+                  ?.filter(
+                    (el: Todo) =>
+                      !state.todos.some((item) => item.title === el.title)
+                  )
+                  ?.slice(0, 20)}
+              >
+                {(todo) => (
+                  <div
+                    onClick={() => {
+                      if (state.editId) return;
+                      onTextChange(todo.title);
+                    }}
+                    class={`${
+                      state.editId ? "cursor-not-allowed" : "cursor-pointer"
+                    } p-2 mb-2 hover:bg-gray-100 ${
+                      state.newTodo.title === todo.title
+                        ? "bg-gray-400 text-white rounded-sm"
+                        : ""
+                    }`}
+                  >
+                    {todo.title}
+                  </div>
+                )}
+              </For>
+            }
+          >
+            <Match when={todosData.loading}>
+              <div class="text-center p-20 text-lg uppercase text-green-300 animate-wiggle">
+                Loading...
+              </div>
+            </Match>
+            <Match when={todosData.error}>
+              <div class="text-center p-20 text-lg uppercase text-red-700">
+                An error occured
+              </div>
+            </Match>
+          </Switch>
         </div>
       </div>
     </div>
